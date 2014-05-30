@@ -11,8 +11,14 @@ class DomainBridge {
   learn("ignore", Ignore)
 
   def table(firstCellText: String): Result = tryThis { currentConcept = conceptFor(firstCellText); Setup() }
-  def row() { currentConcept.row() }
+
+  def row(cells: Seq[String] = Nil): Seq[Result] = {
+    currentConcept.row()
+    cells map { x => cell(x) }
+  }
+
   def cell(text: String): Result =  tryThis { registerResult(currentConcept.anyCell(text)) }
+
   private def tryThis(f: => Result): Result = try {f} catch { case e: Throwable => registerResult(Exception(e)) }
 
   def registerResult(result: Result): Result = {

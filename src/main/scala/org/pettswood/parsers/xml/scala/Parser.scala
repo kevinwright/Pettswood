@@ -13,14 +13,47 @@ class Parser(domain: DomainBridge) {
   class TestParser extends TraverseCopy {
     def traverse(node: Node) = node match {
       case elem: Elem => elem.label match {
-        case "table" => val result = domain.table(firstCell(elem).text); parseCopy(elem, cssAdder(result.name), describeTableFailures(elem.text, result))
-        case "tr" => domain.row(); parseCopy(elem)
-        case "td" if (elem \\ "table").nonEmpty => domain.cell("Nested Table"); <td>{new Parser(domain.nestedDomain()).parse(<div>{NodeSeq.fromSeq(elem.child)}</div>)}</td>
-        case "td" | "th" => val result = domain.cell(elem.text); parseCopy(elem, cssAdder(result.name), describeCellFailures(elem.text, result))
+        case "table" => traverseTable(elem)
+        case "tr" => traverseRow(elem)
+        case "td" if (elem \\ "table").nonEmpty => traverseNestedTable(elem)
+        case "td" | "th" => ???
         case _ => parseCopy(elem)
       }
       case any => any
     }
+
+    def traverseTable(elem: Elem): Elem = {
+      val result = domain.table(firstCell(elem).text)
+      parseCopy(elem, cssAdder(result.name), describeTableFailures(elem.text, result))
+    }
+
+    def traverseNestedTable(elem: Elem): Elem = {
+      domain.cell("Nested Table")
+      <td>{
+        new Parser(domain.nestedDomain()).parse(
+          <div>{NodeSeq.fromSeq(elem.child)}</div>
+        )
+      }</td>
+    }
+
+    def traverseRow(elem: Elem): Elem = {
+      val kids = elem.child.zipWithIndex.map(_.swap)
+      val cells = kids.collect{ case (idx, e: Elem) if e.label == "td" || e.label == "tr" => (idx,e) }
+      val cellindices = cells map {_._1}
+      val noncells = kids filter ( x => !cellindices.contains(x._1) )
+      val inputs = cells map {_._2.text}
+      val nakedresults = domain.row(inputs)
+      val results = cells zip nakedresults map { case ((idx,elem), result) => idx -> (elem->result) }
+
+      val preOutput: Seq[(Int, Any)] = (results ++ noncells) sortBy (_._1)
+      val output = preOutput map {
+        case (idx, (elem: Elem, result: Result)) => parseCopy(elem, cssAdder(result.name), describeCellFailures(elem.text, result))
+        case (idx, node: Node) => node
+      }
+
+      elem.copy(child = output)
+    }
+
   }
 
   def cssAdder(className: String): (Elem) => MetaData = {

@@ -37,8 +37,9 @@ class ParserSpec extends SpecificationWithJUnit with Mockito {
   }
 
   "when html contains tables, the parser" should {
-    "delegate table, row and cell handling to the domain" in {
+    "delegate table and row handling to the domain" in {
       val fixture = new Fixture()
+      fixture.domain.row(Seq("World")) returns Seq(Pass("pass"))
 
       new Parser(fixture.domain).parse(
         <table>
@@ -50,56 +51,68 @@ class ParserSpec extends SpecificationWithJUnit with Mockito {
       )
 
       there was one(fixture.domain).table("Hello")
-      there was one(fixture.domain).row()
-      there was one(fixture.domain).cell("World")
+      there was one(fixture.domain).row(Seq("World"))
     }
-    "jang pass/fail classes into the output" in {
-      val fixture = new Fixture()
-      fixture.domain.cell("pass") returns Pass("pass")
-      fixture.domain.cell("fail") returns Fail("monkeys")
-      fixture.domain.cell("setup") returns Setup()
-      fixture.domain.cell("exception") returns Exception(new RuntimeException("the computer has gone to lunch"))
 
-      (new Parser(fixture.domain).parse(<td>pass</td>) \ "@class" text) must be equalTo "Pass"
-      (new Parser(fixture.domain).parse(<td>fail</td>) \ "@class" text) must be equalTo "Fail"
-      (new Parser(fixture.domain).parse(<td>setup</td>) \ "@class" text) must be equalTo "Setup"
-      (new Parser(fixture.domain).parse(<td>exception</td>) \ "@class" text) must be equalTo "Exception"
+    "inject pass/fail css classes into the output" in {
+      val fixture = new Fixture()
+      fixture.domain.row(
+        Seq("pass", "fail", "setup", "exception")
+      ) returns
+        Seq(Pass("pass"), Fail("monkeys"), Setup(), Exception(new RuntimeException("the computer has gone to lunch")))
+
+      val out = new Parser(fixture.domain).parse(
+        <tr>
+          <td>pass</td>
+          <td>fail</td>
+          <td>setup</td>
+          <td>exception</td>
+        </tr>
+      )
+
+      val cells = out.child collect { case e: Elem => e }
+      (cells(0) \ "@class").text must be equalTo "Pass"
+      (cells(1) \ "@class").text must be equalTo "Fail"
+      (cells(2) \ "@class").text must be equalTo "Setup"
+      (cells(3) \ "@class").text must be equalTo "Exception"
     }
+
     "display expected vs actual for failure results" in {
       val fixture = new Fixture()
-      fixture.domain.cell("sausage") returns Fail("potato")
+      fixture.domain.row(Seq("sausage")) returns Seq(Fail("potato"))
 
-      new Parser(fixture.domain).parse(<td>sausage</td>) must be equalTo
-        <td class="Fail"><span>potato<br></br>but expected:<br></br></span>sausage</td>
+      new Parser(fixture.domain).parse(<tr><td>sausage</td></tr>) must be equalTo
+        <tr><td class="Fail"><span>potato<br></br>but expected:<br></br></span>sausage</td></tr>
       // TODO - CAS - 20/05/2012 - failures really could be displayed better, like this:
 //        <td class="Fail"><span class="strikethrough">sausage</span>potato</td>
     }
 
     "display exception stack traces in cells" in {
       val fixture = new Fixture()
-      fixture.domain.cell("sausage") returns Exception(new NullPointerException("Your pointy things are all null"))
+      fixture.domain.row(Seq("sausage")) returns Seq(Exception(new NullPointerException("Your pointy things are all null")))
+
 
       // TODO - children of result are NodeSeq and children of expect are ArrayBuffer. WTF?!?
-      val result = new Parser(fixture.domain).parse(<td>sausage</td>)
+      val result = new Parser(fixture.domain).parse(<tr><td>sausage</td></tr>)
 
-      (result \\ "span").text must startWith("java.lang.NullPointerException: Your pointy things are all null\n\tat org.pettswood.ParserSpec")
+      (result \\ "td" \\ "span").text must startWith("java.lang.NullPointerException: Your pointy things are all null\n\tat org.pettswood.ParserSpec")
     }
 
     "respect existing classes" in {
       val fixture = new Fixture()
-      fixture.domain.cell("expected") returns Pass("actual")
+      fixture.domain.row(Seq("expected")) returns Seq(Pass("actual"))
 
-      new Parser(fixture.domain).parse(<td class="displayElegantly">expected</td>) must be equalTo <td class="displayElegantly Pass">expected</td>
+      new Parser(fixture.domain).parse(<tr><td class="displayElegantly">expected</td></tr>) must be equalTo <tr><td class="displayElegantly Pass">expected</td></tr>
     }
 
     "recurse into nested tables, wrapping them in a div" in {
       val fixture = new Fixture()
       val nestlingDomain = mock[DomainBridge]
-      nestlingDomain.cell(any[String]) returns Pass("Monkeys")
+      nestlingDomain.row(any[Seq[String]]) returns Seq(Pass("Monkeys"))
       nestlingDomain.table(any[String]) returns Setup()
       fixture.domain.nestedDomain() returns nestlingDomain
 
-      new Parser(fixture.domain).parse(<td><table><td>Nested Table</td></table></td>) must be equalTo <td><div><table class="Setup"><td class="Pass">Nested Table</td></table></div></td>
+      new Parser(fixture.domain).parse(<td><table><tr><td>Nested Table</td></tr></table></td>) must be equalTo <td><div><table class="Setup"><tr><td class="Pass">Nested Table</td></tr></table></div></td>
       
       there was one(nestlingDomain).table("Nested Table")
     }
