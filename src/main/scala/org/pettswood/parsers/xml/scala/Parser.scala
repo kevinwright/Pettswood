@@ -48,6 +48,7 @@ class Parser(domain: DomainBridge) {
       val preOutput: Seq[(Int, Any)] = (results ++ noncells) sortBy (_._1)
       val output = preOutput map {
         case (idx, (elem: Elem, result: Result)) => parseCopy(elem, cssAdder(result.name), describeCellFailures(elem.text, result))
+        case (idx, elem: Elem) => parseCopy(elem)
         case (idx, node: Node) => node
       }
 
