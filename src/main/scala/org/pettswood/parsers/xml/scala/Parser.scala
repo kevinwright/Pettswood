@@ -52,7 +52,10 @@ class Parser(domain: DomainBridge) {
         case (idx, node: Node) => node
       }
 
-      elem.copy(child = output)
+      elem.copy(
+        scope = TopScope,
+        minimizeEmpty = elem.label != "script",
+        child = output)
     }
 
   }
