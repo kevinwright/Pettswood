@@ -12,5 +12,5 @@ class PettswoodFilesSpec extends SpecificationWithJUnit {
     testFilePaths.map(relativise(_)) must contain("src/otherTests2/burrito/Chargrilled.html")
   }
 
-  def relativise(path: String) = path.replaceAll(".*src", "src")
+  def relativise(path: String) = path.replaceAll(".*src", "src").replaceAll("\\\\","/")
 }
