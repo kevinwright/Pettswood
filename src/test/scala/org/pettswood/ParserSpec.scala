@@ -39,7 +39,7 @@ class ParserSpec extends SpecificationWithJUnit with Mockito {
   "when html contains tables, the parser" should {
     "delegate table and row handling to the domain" in {
       val fixture = new Fixture()
-      fixture.domain.row(Seq("World")) returns Seq(Pass("pass"))
+      fixture.domain.row(Seq("Hello","World")) returns Seq(Setup(),Pass("pass"))
 
       new Parser(fixture.domain).parse(
         <table>
@@ -51,7 +51,7 @@ class ParserSpec extends SpecificationWithJUnit with Mockito {
       )
 
       there was one(fixture.domain).table("Hello")
-      there was one(fixture.domain).row(Seq("World"))
+      there was one(fixture.domain).row(Seq("Hello","World"))
     }
 
     "inject pass/fail css classes into the output" in {
@@ -95,7 +95,9 @@ class ParserSpec extends SpecificationWithJUnit with Mockito {
       // TODO - children of result are NodeSeq and children of expect are ArrayBuffer. WTF?!?
       val result = new Parser(fixture.domain).parse(<tr><td>sausage</td></tr>)
 
-      (result \\ "td" \\ "span").text must startWith("java.lang.NullPointerException: Your pointy things are all null\n\tat org.pettswood.ParserSpec")
+      val linesout = (result \\ "td" \\ "span").text.lines
+      linesout.next() must startWith("java.lang.NullPointerException: Your pointy things are all null")
+      linesout.next() must startWith("\tat org.pettswood.ParserSpec")
     }
 
     "respect existing classes" in {
@@ -153,15 +155,15 @@ class ParserSpec extends SpecificationWithJUnit with Mockito {
   }
 }
 
-class NodeSeqWrapper(nodeSeq: NodeSeq) {
-  def \@(selector: String): NodeSeq = {
-    val bits = selector.split("=")
-    nodeSeq.filter(node => ((node \\ ("@" + bits(0))) text) contains bits(1))
-  }
+//class NodeSeqWrapper(nodeSeq: NodeSeq) {
+//  def \@(selector: String): NodeSeq = {
+//    val bits = selector.split("=")
+//    nodeSeq.filter(node => ((node \\ ("@" + bits(0))).text) contains bits(1))
+//  }
+//
+//  def myFilter(elem: NodeSeq): Boolean = ((elem \\ "@class").text) contains "result"
+//}
 
-  def myFilter(elem: NodeSeq): Boolean = ((elem \\ "@class") text) contains "result"
-}
-
-object NodeSeqWrapper {
-  implicit def ToNodeSeqWrapper(someNodeSeq: NodeSeq): NodeSeqWrapper = new NodeSeqWrapper(someNodeSeq)
-}
+//object NodeSeqWrapper {
+//  implicit def ToNodeSeqWrapper(someNodeSeq: NodeSeq): NodeSeqWrapper = new NodeSeqWrapper(someNodeSeq)
+//}
