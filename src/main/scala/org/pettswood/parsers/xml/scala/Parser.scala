@@ -15,7 +15,7 @@ class Parser(domain: DomainBridge) {
       case elem: Elem => elem.label match {
         case "table" => traverseTable(elem)
         case "tr" => traverseRow(elem)
-        case "td" if (elem \\ "table").nonEmpty => traverseNestedTable(elem)
+        case "td" if (elem \ "table").nonEmpty => traverseNestedTable(elem)
         case "td" | "th" => ???
         case _ => parseCopy(elem)
       }
@@ -36,16 +36,20 @@ class Parser(domain: DomainBridge) {
       }</td>
     }
 
+
     def traverseRow(elem: Elem): Elem = {
       val kids = elem.child.zipWithIndex.map(_.swap)
-      val cells = kids.collect{ case (idx, e: Elem) if e.label == "td" || e.label == "tr" => (idx,e) }
-      val cellindices = cells map {_._1}
+      val allCells = kids.collect{ case (idx, e: Elem) if e.label == "td" || e.label == "th" => (idx,e) }
+      val (nestedCells, inputCells) = allCells partition { case (idx, e: Elem) => (elem \\ "table").nonEmpty }
+      val cellindices = allCells map {_._1}
       val noncells = kids filter ( x => !cellindices.contains(x._1) )
-      val inputs = cells map {_._2.text}
+      val inputs = inputCells map {_._2.text}
       val nakedresults = domain.row(inputs)
-      val results = cells zip nakedresults map { case ((idx,elem), result) => idx -> (elem->result) }
+      val results = inputCells zip nakedresults map { case ((idx,elem), result) => idx -> (elem->result) }
 
-      val preOutput: Seq[(Int, Any)] = (results ++ noncells) sortBy (_._1)
+      val nestedOutput = nestedCells map {case (idx,elem) => idx -> traverseNestedTable(elem) }
+
+      val preOutput: Seq[(Int, Any)] = (results ++ nestedOutput ++ noncells) sortBy (_._1)
       val output = preOutput map {
         case (idx, (elem: Elem, result: Result)) => parseCopy(elem, cssAdder(result.name), describeCellFailures(elem.text, result))
         case (idx, elem: Elem) => parseCopy(elem)
