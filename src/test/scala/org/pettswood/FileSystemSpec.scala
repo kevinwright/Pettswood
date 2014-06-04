@@ -61,15 +61,17 @@ class FileSystemSpec extends SpecificationWithJUnit with Mockito with AfterExamp
     "know how to find files by name regex" in {
       val fileSystem = new FileSystem
 
-      fileSystem in "src/test" find ".*.html" must contain (
-        BASE_PATH + "src/test/resources/WritingTestsAndFixture.html"
+      def p(s: String) = s.replace('/', File.separatorChar)
+
+      fileSystem in p("src/test") find ".*.html" must contain (
+        BASE_PATH + p("src/test/resources/WritingTestsAndFixture.html")
       )
       
-      fileSystem in "src/main/scala/" find "R.*.scala" must be equalTo List(
-        BASE_PATH + "src/main/scala/org/pettswood/MultiRow.scala",
-        BASE_PATH + "src/main/scala/org/pettswood/Result.scala",
-        BASE_PATH + "src/main/scala/org/pettswood/ResultSummary.scala",
-        BASE_PATH + "src/main/scala/org/pettswood/runners/DisposableRunner.scala"
+      fileSystem in p("src/main/scala/") find "R.*.scala" must be equalTo List(
+        BASE_PATH + p("src/main/scala/org/pettswood/MultiRow.scala"),
+        BASE_PATH + p("src/main/scala/org/pettswood/Result.scala"),
+        BASE_PATH + p("src/main/scala/org/pettswood/ResultSummary.scala"),
+        BASE_PATH + p("src/main/scala/org/pettswood/runners/DisposableRunner.scala")
       )
     }
 
