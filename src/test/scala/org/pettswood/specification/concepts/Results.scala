@@ -5,7 +5,10 @@ import org.pettswood._
 abstract class Results(results: ResultSummary) extends Concept with MultiRow {
 
   def columns = {
-    case "pass" => Expect(results.totalTally.pass)
+    case "pass" => {
+      println("Results: actual pass " + results.totalTally.pass + " from " + results.domain.name)
+      Expect(results.totalTally.pass)
+    }
     case "fail" => Expect(results.totalTally.fail)
     case "setup" => Expect(results.totalTally.setup)
     case "exception" => Expect(results.totalTally.exception)

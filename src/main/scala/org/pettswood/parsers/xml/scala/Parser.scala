@@ -8,6 +8,8 @@ import org.pettswood.Fail
 
 class Parser(domain: DomainBridge) {
 
+  def log(s: String) = domain.log(s + " [parser]")
+
   def parse(node: Node): Node = new TestParser().traverse(node)
 
   class TestParser extends TraverseCopy {
@@ -30,7 +32,8 @@ class Parser(domain: DomainBridge) {
     def traverseNestedTable(elem: Elem): Elem = {
       domain.cell("Nested Table")
       <td>{
-        new Parser(domain.nestedDomain()).parse(
+
+        new Parser(domain.nestedDomain(firstCell(elem).text)).parse(
           <div>{NodeSeq.fromSeq(elem.child)}</div>
         )
       }</td>
@@ -40,9 +43,12 @@ class Parser(domain: DomainBridge) {
     def traverseRow(elem: Elem): Elem = {
       val kids = elem.child.zipWithIndex.map(_.swap)
       val allCells = kids.collect{ case (idx, e: Elem) if e.label == "td" || e.label == "th" => (idx,e) }
-      val (nestedCells, inputCells) = allCells partition { case (idx, e: Elem) => (elem \\ "table").nonEmpty }
+      val (nestedCells, inputCells) = allCells partition { case (idx, e: Elem) => (e \\ "table").nonEmpty }
       val cellindices = allCells map {_._1}
       val noncells = kids filter ( x => !cellindices.contains(x._1) )
+
+      log(s"traverseRow: ${inputCells.size} input cells, ${nestedCells.size} nested cells, ${noncells.size} other nodes")
+
       val inputs = inputCells map {_._2.text}
       val nakedresults = domain.row(inputs)
       val results = inputCells zip nakedresults map { case ((idx,elem), result) => idx -> (elem->result) }

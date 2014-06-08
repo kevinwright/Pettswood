@@ -1,6 +1,10 @@
 package org.pettswood
 
-class DomainBridge {
+class DomainBridge { self =>
+
+  def name = "-root-"
+  def depth: Int = 0
+  def log(s: String) = println(("    " * depth) + "[" + name + "] " +  s)
 
   var concepts = Map.empty[String, () => Concept]
   var currentConcept: Concept = NoConceptDefined
@@ -11,21 +15,21 @@ class DomainBridge {
   learn("ignore", Ignore)
 
   def table(firstCellText: String): Result = tryThis {
-    //println("New table using concept: " + firstCellText)
+    log("New table using concept: " + firstCellText)
     currentConcept = conceptFor(firstCellText)
-    //println("concept class: " + currentConcept.getClass.getName)
+    log("concept class: " + currentConcept.getClass.getName)
     Setup()
   }
 
   def row(cells: Seq[String] = Nil): Seq[Result] = {
-    //println("row: " + cells.mkString(", "))
+    log("row: " + cells.mkString(", "))
     currentConcept.row()
     cells map { x => cell(x) }
   }
 
   def cell(text: String): Result =  tryThis {
     val suffix = if(currentConcept.firstCell) " (FIRST)" else ""
-    //println("cell: " + text + suffix)
+    log("cell: " + text + suffix)
     registerResult(currentConcept.anyCell(text))
   }
 
@@ -36,8 +40,8 @@ class DomainBridge {
     result
   }
 
-  def nestedDomain() = {
-    val nestling = new DomainBridge
+  def nestedDomain(nestedName: String = "-no-name-"): DomainBridge = {
+    val nestling = new DomainBridge { override val name = nestedName; override val depth = self.depth + 1 }
     nestlings = nestling :: nestlings
     currentConcept.nestedConcepts().foreach { x => nestling.learn(x._1, x._2()) }
     nestling
@@ -45,11 +49,18 @@ class DomainBridge {
 
   // TODO - make learn() accept a varargs of (name, conceptoriser): _*
   def learn(name: String, conceptoriser: => Concept) =  {
-    //println("learning: " + name)
+    log("learning: " + name)
     concepts += ((name.toLowerCase) -> (() => conceptoriser))
     this
   }
-  def summary: ResultSummary = ResultSummary(results, nestlings.map(_.summary))
+  def summary: ResultSummary = {
+    val summary = ResultSummary(this, results, nestlings.map(_.summary))
+    if(summary.totalTally.setup == 14) {
+      log("returning tally: " + System.identityHashCode(this) + " = " + summary.totalTally)
+      summary.writeNestedString(log)
+    }
+    summary
+  }
 
   def conceptFor(conceptName: String): Concept = concepts.get(conceptName.toLowerCase) match {
     case Some(conceptoriser) => conceptoriser()

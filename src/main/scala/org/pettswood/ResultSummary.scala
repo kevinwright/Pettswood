@@ -1,8 +1,13 @@
 package org.pettswood
 
-case class ResultSummary(results: List[Result], children: List[ResultSummary]) {
+case class ResultSummary(domain: DomainBridge, results: List[Result], children: List[ResultSummary]) {
 
   val totalTally: Tally = (tally(results) /: children)((aggregator, nextChild) => aggregator.plus(nextChild.totalTally))
+
+  def writeNestedString(out: String => Unit = println, depth: Int = 0): Unit = {
+    out(("  " * depth)  + tally(results))  + " [" + domain.name + "]"
+    children map { _.writeNestedString(out,depth+1) }
+  }
 
   def tally(someResults: List[Result]): Tally =  {
     var pass, fail, setup, exception = 0
@@ -21,7 +26,7 @@ case class ResultSummary(results: List[Result], children: List[ResultSummary]) {
 }
 
 object ResultSummary {
-  def apply(results: List[Result]): ResultSummary = ResultSummary(results, List.empty[ResultSummary])
+  def apply(domain: DomainBridge, results: List[Result]): ResultSummary = ResultSummary(domain, results, List.empty[ResultSummary])
 }
 
 // TODO - CAS - 22/04/2013 - Combine with ResultSummary

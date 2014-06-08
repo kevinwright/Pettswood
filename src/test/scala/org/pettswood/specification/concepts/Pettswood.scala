@@ -16,11 +16,17 @@ class Pettswood extends Concept with MultiRow {
     case "Results" => DoNothing
   }
 
-  override def nestedConcepts() = Map("Results" -> (() => new TimedResults(nestedDomain.summary)))
+  val results = () => {
+    nestedDomain.log("yielding results: " + nestedDomain.summary)
+    new TimedResults(nestedDomain.summary)
+  }
+  override def nestedConcepts() =
+    Map( "Results" -> results )
 
   case class PettswoodRunner(filePath: String) extends Doer {
     nestedDomain = new DomainBridge
     new DisposableRunner(new Parser(nestedDomain), new FileSystem).run(filePath)
+    println("nested run completed with: " + nestedDomain.summary.totalTally)
   }
 
   case class FileExists(filePath: String) extends Digger {

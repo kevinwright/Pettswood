@@ -8,6 +8,7 @@ import org.pettswood.files.FileSystem
 class DisposableRunner(parser: Parser, fileSystem: FileSystem) {
 
   def run(inputPath: String): ResultSummary =  {
+    println("running: " + inputPath)
     copyResourcesToTest()
     copyResourcesToTarget()
     val rawResult = parser.parse(load(inputPath))
